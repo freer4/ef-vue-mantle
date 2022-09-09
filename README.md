@@ -1,7 +1,7 @@
 # EfVueMantle
 A package connecting Entity Framework Core data to EfVueCrust
 
-==If you're finding this already somehow, please know this is a very incomplete restart of a thing I've rebuilt a couple of times, this will hopefully be a clean, clear, trimmed down version of that system==
+== If you're finding this already somehow, please know this is a very incomplete restart of a thing I've rebuilt a couple of times, this will hopefully be a clean, clear, trimmed down version of that system ==
 
 What this project aims to do, ideally, is allow data models from .net applications to be understood and interacted with by Vue3 applications. 
 
