@@ -11,9 +11,12 @@ What this project aims to do, ideally, is allow data models from .net applicatio
 Define your models as you do today, using EfVueMantle.ModelBase as your base class. [(see caveats)](#caveats)
 
 ### EfVueMantle 
-Provides bases for model, controller, and service for each data type. This scaffolds [basic functionality](#functionality) allowing EFVueCrust to explore data via convention.
 
-### EfVueCrust
+[Get is on GitHub](https://github.com/freer4/ef-vue-mantle) or Nuget.org
+
+Mantle provides bases for model, controller, and service for each data type. This scaffolds the [basic functionality](#functionality) allowing Crust to explore data via convention. It also crafts Javascript class files for Crust, allowing your Vue3 application to understand your entire data structure.
+
+### ef-vue-crust
 
 [Get it on GitHub](https://github.com/freer4/ef-vue-crust)
 
@@ -22,12 +25,13 @@ Provides interfaces for Vue3 to interact with your defined data models via conve
 Creates a virtual "Database" that holds onto records, remembers query results and sort orders, and generally lets you worry about presentation instead of how to transfer data back and forth.
 
 ### Vue3
-Traverse properties in your Vue3 components with dot notation object accessors, and let EfVueCrust worry about ayncronous data loading.  
+Traverse properties in your Vue3 components with dot notation object accessors, and let ef-vue-crust worry about asyncronous data loading.  
 
+(Core, Mantle, Crust, get it? Great. Naming things is hard.)
 
 
 ## Functionality {#functionality}
-These generic methods are understood and automatically sought by EfVueCrust.
+These generic methods are understood and automatically sought by ef-vue-crust.
 
 ### Get list of all ids for a model
 Implemented
@@ -58,4 +62,4 @@ Not implemented
 
 2. Many-to- relationships are a little wonky. Records shouldn't return related data, only related ids. Currently, this over-pulls from the database, creates the id lists at the model level with some extra code I'd prefer wasn't necessary, and also shoves all of the related data back to the front-end. This WILL need to be fixed up at some point, but I've not gotten to that yet.
 
-3. Although EfVueCrust supports guid PKs/ids (untested) this package defaults ids to ints. It's not a priority for me at this time, but the intent is for GUID ids to be possible
+3. Although ef-vue-crust supports guid PKs/ids (untested) this package defaults ids to ints. It's not a priority for me at this time, but the intent is for GUID ids to be possible

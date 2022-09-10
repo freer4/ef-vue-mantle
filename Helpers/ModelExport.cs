@@ -20,7 +20,7 @@ public class ModelExport
         var filePath = $"{directory}/{enumerName}.js";
         using (FileStream fs = File.Create(filePath))
         {
-            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from '../Enum.js';\r\n\r\n");
+            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from '@ef-vue-crust/types/enum.js';\r\n\r\n");
             fs.Write(lineOne, 0, lineOne.Length);
             byte[] lineTwo = new UTF8Encoding(true).GetBytes($"const {enumerName} = new Enum({{\r\n");
             fs.Write(lineTwo, 0, lineTwo.Length);
@@ -144,11 +144,11 @@ public class ModelExport
                 {
                     if (vuePropertyAttribute.VueProperty == "BitArray")
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '../{vuePropertyAttribute.VueProperty}.js';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/types/bit-array.js';\r\n");
                     }
                     else
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from './{vuePropertyAttribute.VueProperty}.js';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/types/bit-array.js';\r\n");
                     }
                 }
                 if (modelProperty.PropertyType.IsArray
@@ -172,13 +172,13 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType == typeof(Guid))
             {
-                imports.Add($"import Guid from '../Guid.js';\r\n");
+                imports.Add($"import Guid from '@ef-vue-crust/types/guid.js';\r\n");
                 propertyType = "Guid";
             }
             else if (modelProperty.PropertyType == typeof(Guid?))
             {
                 nullable = true;
-                imports.Add($"import Guid from '../Guid.js';\r\n");
+                imports.Add($"import Guid from '@ef-vue-crust/types/guid.js';\r\n");
                 propertyType = "Guid";
             }
             else if (
@@ -213,7 +213,7 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType.Name == "Byte[]")
             {
-                imports.Add($"import ByteArray from '../ByteArray.js';\r\n");
+                imports.Add($"import ByteArray from '@ef-vue-crust/types/byte-array.js';\r\n");
                 propertyType = $"ByteArray";
             }
             else if (modelProperty.PropertyType.IsClass)
@@ -223,7 +223,7 @@ public class ModelExport
                 {
                     if (modelProperty.PropertyType.Name == "Point")
                     {
-                        imports.Add($"import {modelProperty.PropertyType.Name} from '../{modelProperty.PropertyType.Name}.js';\r\n");
+                        imports.Add($"import {modelProperty.PropertyType.Name} from '@ef-vue-crust/types/point.js';\r\n");
                         propertyType = modelProperty.PropertyType.Name;
                     }
                     else if (modelProperty.PropertyType.Name == "List`1")
