@@ -7,20 +7,26 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations.Schema;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Http;
 
 //Makes enum and class models for consumption by Vue
 namespace EfVueMantle;
 
 public class ModelExport
 {
+    private static readonly List<Type> Enooms = new();
 
     public static string ConstructEnum(Type enumerType, string directory)
     {
+        if (!Directory.Exists($"{directory}/"))
+        {
+            Directory.CreateDirectory($"{directory}/");
+        }
         var enumerName = enumerType.Name;
         var filePath = $"{directory}/{enumerName}.js";
         using (FileStream fs = File.Create(filePath))
         {
-            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from '@ef-vue-crust/types/enum.js';\r\n\r\n");
+            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from '@ef-vue-crust/data-types/enum';\r\n\r\n");
             fs.Write(lineOne, 0, lineOne.Length);
             byte[] lineTwo = new UTF8Encoding(true).GetBytes($"const {enumerName} = new Enum({{\r\n");
             fs.Write(lineTwo, 0, lineTwo.Length);
@@ -46,17 +52,13 @@ public class ModelExport
         return filePath;
     }
 
-    public static string ExportEnum(Type enoom, string directory)
-    {
-        return ConstructEnum(enoom, directory);
-    }
-    public static List<string> ExportEnums(List<Type> enooms, string directory)
+    private static List<string> ExportEnums(string directory)
     {
         var createdFiles = new List<string>();
 
-        foreach (var enoom in enooms)
+        foreach (var enoom in Enooms)
         {
-            createdFiles.Add(ExportEnum(enoom, directory));
+            createdFiles.Add(ConstructEnum(enoom, directory));
         }
         return createdFiles;
     }
@@ -144,11 +146,11 @@ public class ModelExport
                 {
                     if (vuePropertyAttribute.VueProperty == "BitArray")
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/types/bit-array.js';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/data-types/bit-array';\r\n");
                     }
                     else
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/types/bit-array.js';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/data-types/bit-array';\r\n");
                     }
                 }
                 if (modelProperty.PropertyType.IsArray
@@ -172,13 +174,13 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType == typeof(Guid))
             {
-                imports.Add($"import Guid from '@ef-vue-crust/types/guid.js';\r\n");
+                imports.Add($"import Guid from '@ef-vue-crust/data-types/guid';\r\n");
                 propertyType = "Guid";
             }
             else if (modelProperty.PropertyType == typeof(Guid?))
             {
                 nullable = true;
-                imports.Add($"import Guid from '@ef-vue-crust/types/guid.js';\r\n");
+                imports.Add($"import Guid from '@ef-vue-crust/data-types/guid';\r\n");
                 propertyType = "Guid";
             }
             else if (
@@ -202,6 +204,7 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType.IsEnum)
             {
+                Enooms.Add(modelProperty.PropertyType);
                 imports.Add($"import {modelProperty.PropertyType.Name} from '../enums/{modelProperty.PropertyType.Name}.js';\r\n");
                 propertyType = modelProperty.PropertyType.Name;
             }
@@ -213,7 +216,7 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType.Name == "Byte[]")
             {
-                imports.Add($"import ByteArray from '@ef-vue-crust/types/byte-array.js';\r\n");
+                imports.Add($"import ByteArray from 'ef-vue-crust/data-types/byte-array';\r\n");
                 propertyType = $"ByteArray";
             }
             else if (modelProperty.PropertyType.IsClass)
@@ -223,7 +226,7 @@ public class ModelExport
                 {
                     if (modelProperty.PropertyType.Name == "Point")
                     {
-                        imports.Add($"import {modelProperty.PropertyType.Name} from '@ef-vue-crust/types/point.js';\r\n");
+                        imports.Add($"import {modelProperty.PropertyType.Name} from 'ef-vue-crust/data-types/point';\r\n");
                         propertyType = modelProperty.PropertyType.Name;
                     }
                     else if (modelProperty.PropertyType.Name == "List`1")
@@ -262,6 +265,7 @@ public class ModelExport
             }
             else if (modelProperty is IEnumerable<Enum>)
             {
+                Enooms.Add(modelProperty.PropertyType);
                 imports.Add($"import {modelProperty.PropertyType.Name} from '../enums/{modelProperty.PropertyType.Name}.js';\r\n");
                 propertyType = $"[{modelProperty.PropertyType.Name}]";
             }
@@ -303,12 +307,17 @@ public class ModelExport
 
         }
 
+        if (!Directory.Exists($"{directory}/"))
+        {
+            Directory.CreateDirectory($"{directory}/");
+        }
+
         var filePath = $"{directory}/{modelName}.js";
         imports = imports.Distinct().ToList();
 
         using (FileStream fs = File.Create(filePath))
         {
-            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Model from '../Model.js';\r\n\r\n");
+            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Model from 'ef-vue-crust/data-types/model';\r\n\r\n");
             fs.Write(lineOne, 0, lineOne.Length);
             foreach (string import in imports)
             {
@@ -362,7 +371,7 @@ public class ModelExport
         return filePath;
     }
 
-    public static List<string> ExportModel(string directory)
+    public static List<string> ExportDataObjects(string directory = "VueExports")
     {
         
         var models = AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes())
@@ -371,8 +380,9 @@ public class ModelExport
         
         foreach (var model in models)
         {
-            fileLocations.Add(ConstructModel(model, directory));
+            fileLocations.Add(ConstructModel(model, $"{directory}/models"));
         }
+        fileLocations.AddRange(ExportEnums($"{directory}/enums"));
 
         return fileLocations;
     }
