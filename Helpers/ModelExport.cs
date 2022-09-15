@@ -7,7 +7,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations.Schema;
 using Newtonsoft.Json;
-using Microsoft.AspNetCore.Http;
 
 //Makes enum and class models for consumption by Vue
 namespace EfVueMantle;

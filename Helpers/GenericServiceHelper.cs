@@ -25,11 +25,13 @@ public class GenericServiceHelper<T>
         spec = spec.Trim().ToLower();
 
         var props = PathToParts(propertyPath);
-
         var rebuild = String.Join(".", props);
-        var includePath = rebuild.Remove(rebuild.LastIndexOf("."));
+        IQueryable<T> queryBuilder = _dbSet;
 
-        IQueryable<T> queryBuilder = _dbSet.Include(includePath);
+        if (rebuild.IndexOf(".") != -1)
+        {
+            queryBuilder = _dbSet.Include(rebuild.Remove(rebuild.LastIndexOf(".")));
+        }
 
         return queryBuilder.AsEnumerable()
             .Where(x =>
@@ -59,11 +61,13 @@ public class GenericServiceHelper<T>
         spec = spec.Trim().ToLower();
 
         var props = PathToParts(propertyPath);
-
         var rebuild = String.Join(".", props);
-        var includePath = rebuild.Remove(rebuild.LastIndexOf("."));
+        IQueryable<T> queryBuilder = _dbSet;
 
-        IQueryable<T> queryBuilder = _dbSet.Include(includePath);
+        if (rebuild.IndexOf(".") != -1)
+        {
+            queryBuilder = _dbSet.Include(rebuild.Remove(rebuild.LastIndexOf(".")));
+        }
 
         return queryBuilder.AsEnumerable()
             .Where(x =>
@@ -83,11 +87,13 @@ public class GenericServiceHelper<T>
     {
 
         var props = PathToParts(propertyPath);
-
         var rebuild = String.Join(".", props);
-        var includePath = rebuild.Remove(rebuild.LastIndexOf("."));
+        IQueryable<T> queryBuilder = _dbSet;
 
-            IQueryable<T> queryBuilder = _dbSet.Include(includePath);
+        if (rebuild.IndexOf(".") != -1)
+        {
+            queryBuilder = _dbSet.Include(rebuild.Remove(rebuild.LastIndexOf(".")));
+        }
 
         if (direction == 1)
         {
@@ -113,6 +119,10 @@ public class GenericServiceHelper<T>
      */
     public static string[] PathToParts(string propertyPath)
     {
+        if(propertyPath.IndexOf(".") == -1)
+        {
+            return new string[] { propertyPath };
+        }
         var props = propertyPath.Split(".");
         for (int i = 0, l = props.Length; i < l; ++i)
         {

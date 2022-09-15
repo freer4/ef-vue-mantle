@@ -77,5 +77,21 @@ public class ControllerBase<TModel, TService> : ControllerBase
         return Ok(list);
     }
 
+
+    //Add instance of this model
+    [HttpPost("Add")]
+    public IActionResult Add(TModel data)
+    {
+        _service.Add(data);
+        return Ok(data);
+    }
+
+    [HttpDelete("Delete")]
+    public IActionResult Delete(int id)
+    {
+        _service.Delete(id);
+        return Ok(true);
+    }
+
 }
 

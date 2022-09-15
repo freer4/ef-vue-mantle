@@ -2,22 +2,24 @@
 
 namespace EfVueMantle;
 
-public class ServiceBase<T>
-    where T : ModelBase
+public class ServiceBase<TModel>
+    where TModel : ModelBase
 {
-    private readonly GenericServiceHelper<T> _informHelper;
-    private readonly DbSet<T> _dynamic;
+    private readonly GenericServiceHelper<TModel> _informHelper;
+    private readonly DbSet<TModel> _dynamic;
+    private readonly DbContext _context;
 
-    public ServiceBase(DbSet<T> dbBaseSet)
+    public ServiceBase(DbSet<TModel> dbBaseSet, DbContext context)
     {
         _dynamic = dbBaseSet;
-        _informHelper = new GenericServiceHelper<T>(dbBaseSet);
+        _context = context;
+        _informHelper = new GenericServiceHelper<TModel>(dbBaseSet);
     }
 
     /**
      * One record by Id
      */
-    public T? Get(int id)
+    public TModel? Get(int id)
     {
         return _dynamic.Where(x => x.Id == id).FirstOrDefault();
     }
@@ -25,7 +27,7 @@ public class ServiceBase<T>
     /**
      * All records 
      */
-    public List<T> GetAll()
+    public List<TModel> GetAll()
     {
         return _dynamic.ToList();
     }
@@ -33,7 +35,7 @@ public class ServiceBase<T>
     /**
      * List of records by id list
      */
-    public List<T> GetList(List<int> ids)
+    public List<TModel> GetList(List<int> ids)
     {
         var list = _dynamic.Where(x => ids.Any(id => id == x.Id)).ToList();
         return list;
@@ -69,5 +71,27 @@ public class ServiceBase<T>
     public List<int> Contains(string prop, string spec)
     {
         return _informHelper.Contains(prop, spec);
+    }
+
+    /*
+     * Add a record, return updated data object
+     */
+    public TModel Add(TModel data)
+    {
+        _dynamic.Add(data);
+        _context.SaveChanges();
+        return data;
+    }
+
+    /*
+     * Remove a record, return bool
+     */
+    public bool Delete(int id)
+    {
+        if (Activator.CreateInstance(typeof(TModel)) is not TModel toDelete) return false;
+        toDelete.Id = id;
+        _dynamic.Remove(toDelete);
+        _context.SaveChanges();
+        return true;
     }
 }
