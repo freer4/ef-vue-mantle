@@ -18,7 +18,7 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
 
     [HttpGet("{id}")]
-    public IActionResult Get(int id)
+    public virtual IActionResult Get(int id)
     {
         return Ok(_service.Get(id));
     }
@@ -26,7 +26,7 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
     [HttpGet("All")]
     //Return all available records
-    public IActionResult Get()
+    public virtual IActionResult Get()
     {
         List<TModel> list = _service.GetAll();
         return Ok(list);
@@ -35,7 +35,7 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
     //Return records from list of ids
     [HttpPost("List")]
-    public IActionResult GetList(List<int> ids)
+    public virtual IActionResult GetList(List<int> ids)
     {
         List<TModel> list = _service.GetList(ids);
         return Ok(list);
@@ -43,14 +43,14 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
     //Return list of all available ids
     [HttpGet("AllIds")]
-    public IActionResult Series()
+    public virtual IActionResult Series()
     {
         return Ok(_service.GetAllIds());
     }
 
     //Return list of ids based on query
     [HttpGet("Index/{type}/{prop}/{spec}")]
-    public IActionResult Index(string type, string prop, string spec)
+    public virtual IActionResult Index(string type, string prop, string spec)
     {
         List<int> list = new List<int>();
         try
@@ -80,14 +80,14 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
     //Add instance of this model
     [HttpPost("Add")]
-    public IActionResult Add(TModel data)
+    public virtual IActionResult Add(TModel data)
     {
         _service.Add(data);
         return Ok(data);
     }
 
     [HttpDelete("Delete")]
-    public IActionResult Delete(int id)
+    public virtual IActionResult Delete(int id)
     {
         _service.Delete(id);
         return Ok(true);

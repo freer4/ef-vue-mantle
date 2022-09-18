@@ -381,6 +381,15 @@ public class ModelExport
         {
             fileLocations.Add(ConstructModel(model, $"{directory}/models"));
         }
+
+        var dtos = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes())
+            .Where(x => x.IsSubclassOf(typeof(DataTransferObjectBase)));
+
+        foreach (var dto in dtos)
+        {
+            fileLocations.Add(ConstructModel(dto, $"{directory}/dtos"));
+        }
+
         fileLocations.AddRange(ExportEnums($"{directory}/enums"));
 
         return fileLocations;
