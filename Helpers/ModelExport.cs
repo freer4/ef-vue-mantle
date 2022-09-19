@@ -167,7 +167,7 @@ public class ModelExport
             {
                 if (modelProperty.GetMethod?.CustomAttributes.Where(x => x.AttributeType.Name == "NullableContextAttribute").Count() == 0)
                 {
-                    nullable = true;
+                    nullable = false;
                 }
                 propertyType = "String";
             }
