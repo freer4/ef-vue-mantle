@@ -96,28 +96,25 @@ public int UserId { get; set; }
 public UserProfileModel User { get; set; }
 ```
 
-If you have a many-to- relationship, you'll need this in your model:
+If you have a many-to- relationship, you'll need a property for the list of the keys in your model:
 
 ```
-private List<int> _commentsIds = new();
 [NotMapped]
-public List<int> CommentsIds
-{
-    get { return Comments.Count > 0 ? Comments.Select(x => x.Id).ToList() : _commentsIds; }
-    set { _commentsIds = value; }
-}
+public List<int> CommentsIds { get; set; }
 public List<CommentModel> Comments { get; set; } = new();
 ```
-And you'll need to auto-include the relationship in your db context: 
+
+And you'll need to define the relationship using `WithProjection` in your dbcontext: 
 
 ```
 builder.Entity<DiscussionModel>()
     .HasMany(x => x.Comments);
 builder.Entity<DiscussionModel>()
-    .Navigation(x => x.Comments).AutoInclude();
+    .WithProjection(
+        x => x.CommentsIds,
+        x => x.Comments.Where(y => y.ParentCommentId == null).Select(y => y.Id).ToList()
+    );
 ```
-
-*HELP* If anyone is proficient with EF Core, this shouldn't need all of this code. I'm looking for a way to auto-include just the FKs, i.e. CommentsIds above. In this framework, we only ever want the ids of related data. The front end ([ef-vue-crust](https://github.com/freer4/ef-vue-crust)) asks for record data by individual ids as needed. This is currenlty way, way over-pulling and over-returning. 
 
 ## Controllers
 

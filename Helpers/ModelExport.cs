@@ -32,13 +32,12 @@ public class ModelExport
             var names = Enum.GetNames(enumerType);
             var values = Enum.GetValues(enumerType);
 
-
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < (values?.Length ?? 0); i++)
             {
                 var method = typeof(EnumExtensionMethods).GetMethod("GetDescription");
-                var str = method.Invoke(typeof(EnumExtensionMethods), new object[] { values.GetValue(i) });
+                var str = method?.Invoke(typeof(EnumExtensionMethods), parameters: new object[] { values?.GetValue(i) ?? new object() });
 
-                byte[] valueLine = new UTF8Encoding(true).GetBytes($"    {(int)values.GetValue(i)} : '{str}',\r\n");
+                byte[] valueLine = new UTF8Encoding(true).GetBytes($"    {(int)(values?.GetValue(i) ?? 0)} : '{str}',\r\n");
                 fs.Write(valueLine, 0, valueLine.Length);
             }
 
@@ -68,7 +67,8 @@ public class ModelExport
         string modelName;
 
 
-        var vueModelAttribute = (VueModelAttribute)Attribute.GetCustomAttribute(modelType, typeof(VueModelAttribute));
+        var vueModelAttribute = Attribute.GetCustomAttribute(modelType, typeof(VueModelAttribute)) as VueModelAttribute;
+        var efVueSourceAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueSourceAttribute)) as EfVueSourceAttribute;
         if (vueModelAttribute != null)
         {
             modelName = vueModelAttribute.VueModel;
@@ -78,21 +78,32 @@ public class ModelExport
             modelName = modelType.Name;
         }
         var modelProperties = modelType.GetProperties();
+        string? source = efVueSourceAttribute?.VueSource;
+        if (string.IsNullOrEmpty(source) && modelType.IsSubclassOf(typeof(ModelBase)))
+        {
+            source = modelName;
+        }
+        if (!string.IsNullOrEmpty(source))
+        {
+            source = source.Replace("Model", "");
+        }
+
 
         List<string> imports = new List<string>();
         List<string> properties = new List<string>();
 
         foreach (var modelProperty in modelProperties)
         {
-            var foreignKeyAttribute = (ForeignKeyAttribute)modelProperty.GetCustomAttribute(typeof(ForeignKeyAttribute));
-            var vueModelForeignKeyAttribute = (VueModelForeignKeyAttribute)modelProperty.GetCustomAttribute(typeof(VueModelForeignKeyAttribute));
-            var ignoreAttribute = (JsonIgnoreAttribute)modelProperty.GetCustomAttribute(typeof(JsonIgnoreAttribute));
-            var vuePropertyAttribute = (VuePropertyTypeAttribute)modelProperty.GetCustomAttribute(typeof(VuePropertyTypeAttribute));
-            var minLengthPropertyAttribute = (MinLengthAttribute)modelProperty.GetCustomAttribute(typeof(MinLengthAttribute));
-            var maxLengthPropertyAttribute = (MaxLengthAttribute)modelProperty.GetCustomAttribute(typeof(MaxLengthAttribute));
-            var bitArrayLength = (BitArrayLengthAttribute)modelProperty.GetCustomAttribute(typeof(BitArrayLengthAttribute));
+            var foreignKeyAttribute = modelProperty.GetCustomAttribute(typeof(ForeignKeyAttribute)) as ForeignKeyAttribute;
+            var vueModelForeignKeyAttribute = modelProperty.GetCustomAttribute(typeof(VueModelForeignKeyAttribute)) as VueModelForeignKeyAttribute;
+            var ignoreAttribute = modelProperty.GetCustomAttribute(typeof(JsonIgnoreAttribute)) as JsonIgnoreAttribute;
+            var vuePropertyAttribute = modelProperty.GetCustomAttribute(typeof(VuePropertyTypeAttribute)) as VuePropertyTypeAttribute;
+            var minLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MinLengthAttribute)) as MinLengthAttribute;
+            var maxLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MaxLengthAttribute)) as MaxLengthAttribute;
+            var bitArrayLength = modelProperty.GetCustomAttribute(typeof(BitArrayLengthAttribute)) as BitArrayLengthAttribute;
+            var vueHidden = modelProperty.GetCustomAttribute(typeof(EfVueHiddenAttribute)) as EfVueHiddenAttribute;
 
-            if (ignoreAttribute != null)
+            if (vueHidden != null || ignoreAttribute != null)
             {
                 continue;
             }
@@ -209,8 +220,8 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType.GenericTypeArguments?.FirstOrDefault()?.IsEnum == true)
             {
-                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name} from './{modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault().Name}.js';\r\n");
-                propertyType = modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name ?? "Null";
+                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name} from './{modelProperty?.PropertyType?.GenericTypeArguments?.FirstOrDefault()?.Name}.js';\r\n");
+                propertyType = modelProperty?.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name ?? "Null";
                 nullable = true;
             }
             else if (modelProperty.PropertyType.Name == "Byte[]")
@@ -236,9 +247,17 @@ public class ModelExport
                             nullable = true;
                             propertyType = "[Number]";
                         }
+                        else if (modelProperty.PropertyType.GenericTypeArguments?[0].Name == "String")
+                        {
+                            nullable = true;
+                            propertyType = "[String]";
+                        }
                         else
                         {
-                            imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments?[0].Name} from './{modelProperty.PropertyType.GenericTypeArguments?[0].Name}.js';\r\n");
+                            if (modelProperty.PropertyType.GenericTypeArguments?[0].Name != modelName)
+                            {
+                                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments?[0].Name} from './{modelProperty.PropertyType.GenericTypeArguments?[0].Name}.js';\r\n");
+                            }
                             propertyType = $"[{modelProperty.PropertyType.GenericTypeArguments?[0].Name}]";
                         }
                     }
@@ -297,11 +316,11 @@ public class ModelExport
 
             if (configurationObject.Count > 0)
             {
-                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty.Name)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}, config: {System.Text.Json.JsonSerializer.Serialize(configurationObject)}}},\r\n");
+                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}, config: {System.Text.Json.JsonSerializer.Serialize(configurationObject)}}},\r\n");
             }
             else
             {
-                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty.Name)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}}},\r\n");
+                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}}},\r\n");
             }
 
         }
@@ -329,18 +348,20 @@ public class ModelExport
             byte[] lineThree = new UTF8Encoding(true).GetBytes("    constructor(record, config = {}){\r\n");
             fs.Write(lineThree, 0, lineThree.Length);
 
-            byte[] lineFour = new UTF8Encoding(true).GetBytes("        super(record, config);\r\n\r\n");
+            byte[] lineFour = new UTF8Encoding(true).GetBytes("        super(record, config);\r\n");
             fs.Write(lineFour, 0, lineFour.Length);
 
 
-            byte[] lineSix = new UTF8Encoding(true).GetBytes($"    }}\r\n    static name = '{modelName}';\r\n");
+            byte[] lineSix = new UTF8Encoding(true).GetBytes($"    }}\r\n\r\n    static name = '{modelName}';\r\n");
             fs.Write(lineSix, 0, lineSix.Length);
 
-            if (!modelName.Contains("DTO"))
+            if (!string.IsNullOrEmpty(source))
             {
-                byte[] lineSeven = new UTF8Encoding(true).GetBytes($"    static source = '{modelName.Replace("Model", "")}';\r\n");
+                byte[] lineSeven = new UTF8Encoding(true).GetBytes($"    static source = '{source}';\r\n");
                 fs.Write(lineSeven, 0, lineSeven.Length);
             }
+            byte[] lineSevenish = new UTF8Encoding(true).GetBytes($"    static dto = {modelType.IsSubclassOf(typeof(DataTransferObjectBase)).ToString().ToLower()};\r\n");
+            fs.Write(lineSevenish, 0, lineSevenish.Length);
 
             byte[] lineSevenOne = new UTF8Encoding(true).GetBytes($"\r\n    static getProperties = () => {{\r\n");
             fs.Write(lineSevenOne, 0, lineSevenOne.Length);

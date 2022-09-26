@@ -2,5 +2,5 @@
 
 public class DataTransferObjectBase
 {
-    public DataTransferObjectBase() { }
+    public static string _source = string.Empty;
 }

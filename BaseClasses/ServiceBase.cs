@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using EfVueMantle.Helpers;
+using Microsoft.EntityFrameworkCore;
 
 namespace EfVueMantle;
 
@@ -21,7 +22,11 @@ public class ServiceBase<TModel>
      */
     public virtual TModel? Get(int id)
     {
-        return _dynamic.Where(x => x.Id == id).FirstOrDefault();
+        return GetQuery(id).FirstOrDefault();
+    }
+    public virtual IQueryable<TModel> GetQuery(int id)
+    {
+        return _dynamic.Where(x => x.Id == id).ApplyCustomProjection(_context);
     }
 
     /**
@@ -29,7 +34,11 @@ public class ServiceBase<TModel>
      */
     public virtual List<TModel> GetAll()
     {
-        return _dynamic.ToList();
+        return GetAllQuery().ToList();
+    }
+    public virtual IQueryable<TModel> GetAllQuery()
+    {
+        return _dynamic.ApplyCustomProjection(_context);
     }
 
     /**
@@ -37,8 +46,11 @@ public class ServiceBase<TModel>
      */
     public virtual List<TModel> GetList(List<int> ids)
     {
-        var list = _dynamic.Where(x => ids.Any(id => id == x.Id)).ToList();
-        return list;
+        return GetListQuery(ids).ToList();
+    }
+    public virtual IQueryable<TModel> GetListQuery(List<int> ids)
+    {
+        return _dynamic.Where(x => ids.Any(id => id == x.Id)).ApplyCustomProjection(_context);
     }
 
     /**
@@ -46,7 +58,11 @@ public class ServiceBase<TModel>
      */
     public virtual List<int> GetAllIds()
     {
-        return _dynamic.Select(x => x.Id).ToList();
+        return GetAllIdsQuery().Select(x => x.Id).ToList();
+    }
+    public virtual IQueryable<TModel> GetAllIdsQuery()
+    {
+        return _dynamic;
     }
 
     /**
@@ -76,7 +92,7 @@ public class ServiceBase<TModel>
     /*
      * Add a record, return updated data object
      */
-    public virtual TModel Add(TModel data)
+    public virtual TModel Save(TModel data)
     {
         _dynamic.Add(data);
         _context.SaveChanges();

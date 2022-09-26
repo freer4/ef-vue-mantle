@@ -121,7 +121,7 @@ public class GenericServiceHelper<T>
     {
         if(propertyPath.IndexOf(".") == -1)
         {
-            return new string[] { propertyPath };
+            return new string[] { char.ToUpper(propertyPath[0]) + propertyPath[1..] };
         }
         var props = propertyPath.Split(".");
         for (int i = 0, l = props.Length; i < l; ++i)

@@ -39,3 +39,32 @@ public class BitArrayLengthAttribute : Attribute
         BitArrayLength = length;
     }
 }
+
+[AttributeUsage(AttributeTargets.Property)]
+public class VueExcludeFromDataAttribute : Attribute
+{
+    public bool VueExcludeFromData { get; set; }
+    public VueExcludeFromDataAttribute()
+    {
+        VueExcludeFromData = true;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Property)]
+public class EfVueHiddenAttribute : Attribute
+{
+    //
+}
+[AttributeUsage(AttributeTargets.Class)]
+public class EfVueSourceAttribute : Attribute
+{
+    public string VueSource { get; set; }
+    public EfVueSourceAttribute(Type vueSource)
+    {
+        VueSource = vueSource.Name;
+    }
+    public EfVueSourceAttribute(string vueSource)
+    {
+        VueSource = vueSource;
+    }
+}
