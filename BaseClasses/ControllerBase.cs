@@ -38,16 +38,6 @@ public class ControllerBase<TModel, TService> : ControllerBase
     public virtual IActionResult GetList(List<int> ids)
     {
         List<TModel> list = _service.GetList(ids);
-        var ignoreProperties = typeof(TModel).GetProperties().Where(prop => prop.IsDefined(typeof(VueExcludeFromDataAttribute), false));
-        foreach (var item in list)
-        {
-            foreach (var ignoreProperty in ignoreProperties)
-            {
-                
-                //TODO clear verbose return data
-                //TODO undo this with something more efficient? Ignore completely by pulling just Ids?
-            }
-        }
         return Ok(list);
     }
 

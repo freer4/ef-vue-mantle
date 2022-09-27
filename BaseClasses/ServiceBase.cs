@@ -99,6 +99,15 @@ public class ServiceBase<TModel>
         return data;
     }
 
+
+    /*
+     * Update a record, return updated data object
+     */
+    public virtual int Update()
+    {
+        return _context.SaveChanges();
+    }
+
     /*
      * Remove a record, return bool
      */
