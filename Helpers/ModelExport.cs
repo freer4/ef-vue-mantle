@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations.Schema;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 //Makes enum and class models for consumption by Vue
 namespace EfVueMantle;
@@ -25,7 +26,7 @@ public class ModelExport
         var filePath = $"{directory}/{enumerName}.js";
         using (FileStream fs = File.Create(filePath))
         {
-            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from '@ef-vue-crust/data-types/enum';\r\n\r\n");
+            byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from 'ef-vue-crust/data-types/enum';\r\n\r\n");
             fs.Write(lineOne, 0, lineOne.Length);
             byte[] lineTwo = new UTF8Encoding(true).GetBytes($"const {enumerName} = new Enum({{\r\n");
             fs.Write(lineTwo, 0, lineTwo.Length);
@@ -160,7 +161,7 @@ public class ModelExport
                     }
                     else
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/data-types/bit-array';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '../{Regex.Replace(vuePropertyAttribute.VueProperty, @"([a-z])([A-Z])", "$1-$2").ToLower()}';\r\n");
                     }
                 }
                 if (modelProperty.PropertyType.IsArray
@@ -176,9 +177,9 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType == typeof(string))
             {
-                if (modelProperty.GetMethod?.CustomAttributes.Where(x => x.AttributeType.Name == "NullableContextAttribute").Count() == 0)
+                if (modelProperty.GetMethod?.CustomAttributes.Where(x => x.AttributeType.Name == "NullableContextAttribute").Count() > 0)
                 {
-                    nullable = false;
+                    nullable = true;
                 }
                 propertyType = "String";
             }

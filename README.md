@@ -65,8 +65,6 @@ Not implemented
 ## Caveats
 1. The .net-> js translator currently requires that you manually define the ForeignKeys in your models. Not a huge thing but a bit annoying. This can hopefully be overcome later
 
-2. Many-to- relationships are a little wonky. Records shouldn't return related data, only related ids. Currently, this over-pulls from the database, creates the id lists at the model level with some extra code I'd prefer wasn't necessary, and also shoves all of the related data back to the front-end. This WILL need to be fixed up at some point, but I've not gotten to that yet.
-
 3. Although Crust supports guid PKs/ids (untested) this package defaults ids to ints. It's not a priority for me at this time, but the intent is for GUID ids to be supported
 
 ## Getting started!
@@ -75,7 +73,7 @@ You'll need to call the ExportDataObjects method, with a path to wherever you wa
 
 This will automatically pick up any models using EfVueMantle.ModelBase as a base class, and any enums used in their properties.
 
-I just drop this in my `OnModelCreating`:
+I just drop this in my `Program.cs`:
 
 ```
 if (_hostingEnvironment.IsDevelopment())
@@ -93,10 +91,10 @@ You will need to manually define FKs at the moment... hopefully that won't remai
 ```
 public int UserId { get; set; }
 [ForeignKey("UserId")]
-public UserProfileModel User { get; set; }
+public UserModel User { get; set; }
 ```
 
-If you have a many-to- relationship, you'll need a property for the list of the keys in your model:
+If you have a many-to- relationship, you'll need a property for the list of the keys in your model. Be sure to mark it as `[NotMapped]`.
 
 ```
 [NotMapped]
@@ -116,6 +114,9 @@ builder.Entity<DiscussionModel>()
     );
 ```
 
+If the `[JsonIgnore]` decorator is used, the model export will ignore that property.
+
+
 ## Controllers
 
 Do your controllers as usual, just use the EfVueMantle.ControllerBase class as your base. 
@@ -132,6 +133,8 @@ public class CommentController : ControllerBase<CommentModel, CommentService>
 
 This adds the default endpoints needed for Crust to get the data it wants, and you don't have to do anything else unless you need custom functionality. 
 
+All base controller methods are virtual, so override if you need more complex functionality.
+
 
 ## Services
 
@@ -143,7 +146,7 @@ public class CommentService : ServiceBase<CommentModel>
     private readonly YouDbContext _context;
     private readonly DbSet<CommentModel> _comments;
 
-    public CommentService(YouDbContext context) : base(context.Comments)
+    public CommentService(YouDbContext context) : base(context.Comments, context)
     {
         _context = context;
         _comments = context.Comments;
@@ -152,8 +155,9 @@ public class CommentService : ServiceBase<CommentModel>
 
 ```
 
-Once again, that's all you need. Expand it as you like. 
+Once again, that's all you need. Override the base methods as needed and expand the service as you like. 
 
 ## Not implemented features
 
-- Open socket data pushing
+### Open socket data pushing
+At some point we'll have open socket data alerts sent to your local Crust databases, allowing live updates on a per-entity basis.

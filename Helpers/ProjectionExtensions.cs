@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Diagnostics;
 
 //Thanks to Svyatoslav Danyliv @stackoverflow.com
 namespace EfVueMantle.Helpers;
@@ -23,13 +24,19 @@ public static class ProjectionExtensions
         public MemberInfo Member { get; }
         public LambdaExpression Expression { get; }
     }
+    public static bool IsUnderDotnetTool { get; }
+        = Process.GetCurrentProcess().ProcessName == "dotnet";
 
-    public static EntityTypeBuilder<TEntity> WithProjection<TEntity, TValue>(
+
+        public static EntityTypeBuilder<TEntity> WithProjection<TEntity, TValue>(
         this EntityTypeBuilder<TEntity> entity,
         Expression<Func<TEntity, TValue>> propExpression,
         Expression<Func<TEntity, TValue>> assignmentExpression)
         where TEntity : class
     {
+        if (IsUnderDotnetTool)
+            return entity;
+
         var annotation = entity.Metadata.FindAnnotation(CustomProjectionAnnotation);
         var projections = annotation?.Value as List<ProjectionInfo> ?? new List<ProjectionInfo>();
 
