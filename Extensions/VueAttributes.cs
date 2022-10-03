@@ -1,50 +1,50 @@
 ﻿namespace EfVueMantle;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class VuePropertyTypeAttribute : Attribute
+public class EfVuePropertyTypeAttribute : Attribute
 {
     public string VueProperty { get; set; }
-    public VuePropertyTypeAttribute(string property)
+    public EfVuePropertyTypeAttribute(string property)
     {
         VueProperty = property;
     }
 }
 
 [AttributeUsage(AttributeTargets.Class)]
-public class VueModelAttribute : Attribute
+public class EfVueModelAttribute : Attribute
 {
     public string VueModel { get; set; }
-    public VueModelAttribute(string model)
+    public EfVueModelAttribute(string model)
     {
         VueModel = model;
     }
 }
 
 [AttributeUsage(AttributeTargets.Property)]
-public class VueModelForeignKeyAttribute : Attribute
+public class EfVueModelForeignKeyAttribute : Attribute
 {
     public string VueModelForeignKey { get; set; }
-    public VueModelForeignKeyAttribute(string foreignKey)
+    public EfVueModelForeignKeyAttribute(string foreignKey)
     {
         VueModelForeignKey = foreignKey;
     }
 }
 
 [AttributeUsage(AttributeTargets.Property)]
-public class BitArrayLengthAttribute : Attribute
+public class EfBitArrayLengthAttribute : Attribute
 {
     public int BitArrayLength { get; set; }
-    public BitArrayLengthAttribute(int length)
+    public EfBitArrayLengthAttribute(int length)
     {
         BitArrayLength = length;
     }
 }
 
 [AttributeUsage(AttributeTargets.Property)]
-public class VueExcludeFromDataAttribute : Attribute
+public class EfVueExcludeFromDataAttribute : Attribute
 {
     public bool VueExcludeFromData { get; set; }
-    public VueExcludeFromDataAttribute()
+    public EfVueExcludeFromDataAttribute()
     {
         VueExcludeFromData = true;
     }
@@ -66,5 +66,15 @@ public class EfVueSourceAttribute : Attribute
     public EfVueSourceAttribute(string vueSource)
     {
         VueSource = vueSource;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Property)]
+public class EfVueEnumAttribute : Attribute
+{
+    public Type VueEnum { get; set; }
+    public EfVueEnumAttribute(Type vueEnum)
+    {
+        VueEnum = vueEnum;
     }
 }

@@ -95,6 +95,7 @@ public class ServiceBase<TModel>
     public virtual TModel Save(TModel data)
     {
         _dynamic.Add(data);
+        _context.Entry(data).State = data.Id == 0 ? EntityState.Added : EntityState.Modified;
         _context.SaveChanges();
         return data;
     }

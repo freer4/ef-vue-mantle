@@ -8,6 +8,8 @@ using System.Text.Json;
 using System.ComponentModel.DataAnnotations.Schema;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
+using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 //Makes enum and class models for consumption by Vue
 namespace EfVueMantle;
@@ -26,19 +28,33 @@ public class ModelExport
         var filePath = $"{directory}/{enumerName}.js";
         using (FileStream fs = File.Create(filePath))
         {
+            var names = Enum.GetNames(enumerType);
+            var values = Enum.GetValues(enumerType);
+            var flagsAttribute = Attribute.GetCustomAttribute(enumerType, typeof(FlagsAttribute)) as FlagsAttribute;
+            var method = typeof(EnumExtensionMethods).GetMethod("GetDescription");
+
+
             byte[] lineOne = new UTF8Encoding(true).GetBytes("import Enum from 'ef-vue-crust/data-types/enum';\r\n\r\n");
             fs.Write(lineOne, 0, lineOne.Length);
             byte[] lineTwo = new UTF8Encoding(true).GetBytes($"const {enumerName} = new Enum({{\r\n");
             fs.Write(lineTwo, 0, lineTwo.Length);
-            var names = Enum.GetNames(enumerType);
-            var values = Enum.GetValues(enumerType);
 
             for (int i = 0; i < (values?.Length ?? 0); i++)
             {
-                var method = typeof(EnumExtensionMethods).GetMethod("GetDescription");
-                var str = method?.Invoke(typeof(EnumExtensionMethods), parameters: new object[] { values?.GetValue(i) ?? new object() });
 
-                byte[] valueLine = new UTF8Encoding(true).GetBytes($"    {(int)(values?.GetValue(i) ?? 0)} : '{str}',\r\n");
+                var value = Enum.Parse(enumerType, names[i]);
+                var str = method?.Invoke(typeof(EnumExtensionMethods), parameters: new object[] { values?.GetValue(i) ?? new object() });
+                if (value == null) continue;
+
+                byte[] valueLine;
+                if (flagsAttribute == null)
+                {
+                    valueLine = new UTF8Encoding(true).GetBytes($"    {(int)value} : '{str}',\r\n");
+                }
+                else
+                {
+                    valueLine = new UTF8Encoding(true).GetBytes($"    {(ushort)value} : '{str}',\r\n");
+                }
                 fs.Write(valueLine, 0, valueLine.Length);
             }
 
@@ -68,7 +84,7 @@ public class ModelExport
         string modelName;
 
 
-        var vueModelAttribute = Attribute.GetCustomAttribute(modelType, typeof(VueModelAttribute)) as VueModelAttribute;
+        var vueModelAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueModelAttribute)) as EfVueModelAttribute;
         var efVueSourceAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueSourceAttribute)) as EfVueSourceAttribute;
         if (vueModelAttribute != null)
         {
@@ -96,20 +112,23 @@ public class ModelExport
         foreach (var modelProperty in modelProperties)
         {
             var foreignKeyAttribute = modelProperty.GetCustomAttribute(typeof(ForeignKeyAttribute)) as ForeignKeyAttribute;
-            var vueModelForeignKeyAttribute = modelProperty.GetCustomAttribute(typeof(VueModelForeignKeyAttribute)) as VueModelForeignKeyAttribute;
+            var vueModelForeignKeyAttribute = modelProperty.GetCustomAttribute(typeof(EfVueModelForeignKeyAttribute)) as EfVueModelForeignKeyAttribute;
             var ignoreAttribute = modelProperty.GetCustomAttribute(typeof(JsonIgnoreAttribute)) as JsonIgnoreAttribute;
-            var vuePropertyAttribute = modelProperty.GetCustomAttribute(typeof(VuePropertyTypeAttribute)) as VuePropertyTypeAttribute;
+            var vuePropertyAttribute = modelProperty.GetCustomAttribute(typeof(EfVuePropertyTypeAttribute)) as EfVuePropertyTypeAttribute;
             var minLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MinLengthAttribute)) as MinLengthAttribute;
             var maxLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MaxLengthAttribute)) as MaxLengthAttribute;
-            var bitArrayLength = modelProperty.GetCustomAttribute(typeof(BitArrayLengthAttribute)) as BitArrayLengthAttribute;
+            var bitArrayLength = modelProperty.GetCustomAttribute(typeof(EfBitArrayLengthAttribute)) as EfBitArrayLengthAttribute;
             var vueHidden = modelProperty.GetCustomAttribute(typeof(EfVueHiddenAttribute)) as EfVueHiddenAttribute;
+            var efVueEnum = modelProperty.GetCustomAttribute(typeof(EfVueEnumAttribute)) as EfVueEnumAttribute;
 
             if (vueHidden != null || ignoreAttribute != null)
             {
                 continue;
             }
 
+
             var configurationObject = new Dictionary<string, dynamic>() { };
+
             if (bitArrayLength != null)
             {
                 configurationObject["length"] = bitArrayLength.BitArrayLength;
@@ -147,21 +166,29 @@ public class ModelExport
             {
                 nullable = true;
             }
-            //if (modelProperty.Name != "Id" && Nullable.GetUnderlyingType(modelProperty.PropertyType) == null)
-            //{
-            //    nullable = false;
-            //}
+
+            if (efVueEnum?.VueEnum != null)
+            {
+                Enooms.Add(efVueEnum.VueEnum);
+                imports.Add($"import {efVueEnum.VueEnum.Name} from '../enums/{efVueEnum.VueEnum.Name}.js';\r\n");
+                configurationObject["enum"] = efVueEnum.VueEnum;
+            }
+
             if (vuePropertyAttribute != null)
             {
                 if (modelName != vuePropertyAttribute.VueProperty)
                 {
                     if (vuePropertyAttribute.VueProperty == "BitArray")
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '@ef-vue-crust/data-types/bit-array';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from 'ef-vue-crust/data-types/bit-array';\r\n");
+                    }
+                    else if (vuePropertyAttribute.VueProperty == "Flag")
+                    {
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from 'ef-vue-crust/data-types/flag';\r\n");
                     }
                     else
                     {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '../{Regex.Replace(vuePropertyAttribute.VueProperty, @"([a-z])([A-Z])", "$1-$2").ToLower()}';\r\n");
+                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '../data-types/{Regex.Replace(vuePropertyAttribute.VueProperty, @"([a-z])([A-Z])", "$1-$2").ToLower()}';\r\n");
                     }
                 }
                 if (modelProperty.PropertyType.IsArray
@@ -185,13 +212,13 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType == typeof(Guid))
             {
-                imports.Add($"import Guid from '@ef-vue-crust/data-types/guid';\r\n");
+                imports.Add($"import Guid from 'ef-vue-crust/data-types/guid';\r\n");
                 propertyType = "Guid";
             }
             else if (modelProperty.PropertyType == typeof(Guid?))
             {
                 nullable = true;
-                imports.Add($"import Guid from '@ef-vue-crust/data-types/guid';\r\n");
+                imports.Add($"import Guid from 'ef-vue-crust/data-types/guid';\r\n");
                 propertyType = "Guid";
             }
             else if (
@@ -221,7 +248,8 @@ public class ModelExport
             }
             else if (modelProperty.PropertyType.GenericTypeArguments?.FirstOrDefault()?.IsEnum == true)
             {
-                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name} from './{modelProperty?.PropertyType?.GenericTypeArguments?.FirstOrDefault()?.Name}.js';\r\n");
+                Enooms.Add(modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault());
+                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name} from '../enums/{modelProperty?.PropertyType?.GenericTypeArguments?.FirstOrDefault()?.Name}.js';\r\n");
                 propertyType = modelProperty?.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name ?? "Null";
                 nullable = true;
             }
@@ -317,7 +345,12 @@ public class ModelExport
 
             if (configurationObject.Count > 0)
             {
-                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}, config: {System.Text.Json.JsonSerializer.Serialize(configurationObject)}}},\r\n");
+                var jsonSerializerSettings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.None
+                };
+                jsonSerializerSettings.Converters.Add(new TypeConverter());
+                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}, config: {JsonConvert.SerializeObject(configurationObject, jsonSerializerSettings)}}},\r\n");
             }
             else
             {
@@ -415,5 +448,19 @@ public class ModelExport
         fileLocations.AddRange(ExportEnums($"{directory}/enums"));
 
         return fileLocations;
+    }
+}
+
+
+public class TypeConverter : JsonConverter<Type>
+{
+    public override void WriteJson(JsonWriter writer, Type type, JsonSerializer serializer)
+    {
+        writer.WriteRawValue(type.ToString().Split('.').Last());
+    }
+
+    public override Type ReadJson(JsonReader reader, Type objectType, Type existingValue, bool hasExistingValue, JsonSerializer serializer)
+    {
+        throw new NotImplementedException();
     }
 }
