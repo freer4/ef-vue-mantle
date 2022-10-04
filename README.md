@@ -62,11 +62,6 @@ Not implemented
 ### Delete data record for model
 Not implemented
 
-## Caveats
-1. The .net-> js translator currently requires that you manually define the ForeignKeys in your models. Not a huge thing but a bit annoying. This can hopefully be overcome later
-
-3. Although Crust supports guid PKs/ids (untested) this package defaults ids to ints. It's not a priority for me at this time, but the intent is for GUID ids to be supported
-
 ## Getting started!
 
 You'll need to call the ExportDataObjects method, with a path to wherever you want the exported JS to live. I suggest a directory in your VueProject/src folder named something snazzy and original like "data". It will create sub-directories for models and enums as necessary.
@@ -82,9 +77,24 @@ if (_hostingEnvironment.IsDevelopment())
 }
 ```
 
+If you need to add any custom data types, create the hypen-cased.js file for the class in a directory named "data-types". 
+Then decorate your property like so: 
+```
+[EfVuePropertyType("SomeType")]
+```
+This will add an include for your custom data-type definition `SomeType`, looking for `/path/to/your/data/data-type/some-type.js`
+
+---
+
 ## Models
 
-The `ModelBase` class contains only three properties - Id, Created, and Updated. It's mostly necessary so that the other base classes can rely on the Id property, and so the exporter knows which models to roll out. 
+The `ModelBase` class contains only three properties - `Id`, `Created`, and `Updated`. It's mostly necessary so that the other base classes can rely on the Id property, and so the exporter knows which models to roll out. 
+
+```
+public class AccountModel : ModelBase{
+    //Properties to your heart's desire.
+}
+```
 
 You will need to manually define FKs at the moment... hopefully that won't remain a thing. 
 
@@ -114,8 +124,17 @@ builder.Entity<DiscussionModel>()
     );
 ```
 
+There are many custom decorators, and some native ones will be recognized as well. *TODO* many of which are vestigial, and need to be cleaned up
+
+*TODO* also need to document them all
+
 If the `[JsonIgnore]` decorator is used, the model export will ignore that property.
 
+### Caveats
+1. The .net-> js translator currently requires that you manually define the ForeignKeys for 1-1 relationships in your models. Not a huge thing but a bit annoying. This can hopefully be overcome later
+
+2. Although Crust supports guid PKs/ids (untested) this package defaults ids to ints. It's not a priority for me at this time, but the intent is for GUID ids to be supported
+---
 
 ## Controllers
 
@@ -123,10 +142,8 @@ Do your controllers as usual, just use the EfVueMantle.ControllerBase class as y
 ```
 public class CommentController : ControllerBase<CommentModel, CommentService>
 {
-    public CommentService _commentService;
     public CommentController(CommentService commentService) : base(commentService)
     {
-        _commentService = commentService;
     }
 }
 ```
@@ -143,13 +160,8 @@ Just like Models and Controllers, use ServiceBase to add a service with all the 
 ```
 public class CommentService : ServiceBase<CommentModel>
 {
-    private readonly YouDbContext _context;
-    private readonly DbSet<CommentModel> _comments;
-
-    public CommentService(YouDbContext context) : base(context.Comments, context)
+    public CommentService(YourDbContext context) : base(context.Comments, context)
     {
-        _context = context;
-        _comments = context.Comments;
     }
 }
 
