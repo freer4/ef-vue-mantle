@@ -5,18 +5,14 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EfVueMantle.BaseClasses;
+namespace EfVueMantle;
 
-internal class SoftDelete: SoftDelete<long>
-{
-
-}
-
-internal class SoftDelete<TKey>
+public interface ISoftDelete : ISoftDelete<long> { }
+public interface ISoftDelete<TKey>
     where TKey: IEquatable<TKey>
 {
-    public bool Deleted { get; set; }
-    public TKey? DeletedByUserId { get; set; }
-    public DateTime DeletedDateTime { get; set; }
-
+    public bool? Deleted { get; set; }
+    //TODO can't use TKey here because of nullability issues? 
+    public long? DeletedByUserId { get; set; }
+    public DateTime? DeletedDateTime { get; set; }
 }
