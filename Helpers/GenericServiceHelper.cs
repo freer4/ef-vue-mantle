@@ -2,13 +2,18 @@
 
 namespace EfVueMantle;
 
-public class GenericServiceHelper<T>
-    where T : ModelBase
-
+public class GenericServiceHelper<TModel> : GenericServiceHelper<TModel, long> 
+    where TModel : ModelBase
+{ 
+    public GenericServiceHelper(DbSet<TModel> dbSet) : base(dbSet) { }
+}
+public class GenericServiceHelper<TModel, TKey>
+    where TModel : ModelBase<TKey>
+    where TKey : IEquatable<TKey>
 {
-    public DbSet<T> _dbSet;
+    public DbSet<TModel> _dbSet;
 
-    public GenericServiceHelper(DbSet<T> dbSet)
+    public GenericServiceHelper(DbSet<TModel> dbSet)
     {
         _dbSet = dbSet;
     }
@@ -18,7 +23,7 @@ public class GenericServiceHelper<T>
      * Takes a property name (or path in dot notation) and a string to look for,
      * returns a list of ids for any case-insensitive exact matches
      */
-    public List<int> Equals(string propertyPath, string spec)
+    public List<TKey> Equals(string propertyPath, string spec)
     {
         //case-insensitive
         //TODO create a case-sensitive version
@@ -26,7 +31,7 @@ public class GenericServiceHelper<T>
 
         var props = PathToParts(propertyPath);
         var rebuild = String.Join(".", props);
-        IQueryable<T> queryBuilder = _dbSet;
+        IQueryable<TModel> queryBuilder = _dbSet;
 
         if (rebuild.IndexOf(".") != -1)
         {
@@ -53,7 +58,7 @@ public class GenericServiceHelper<T>
      * Takes a property name (or path in dot notation) and a string to look for,
      * returns a list of ids for values containing spec
      */
-    public List<int> Contains(string propertyPath, string spec)
+    public List<TKey> Contains(string propertyPath, string spec)
     {
 
         //case-insensitive
@@ -62,7 +67,7 @@ public class GenericServiceHelper<T>
 
         var props = PathToParts(propertyPath);
         var rebuild = String.Join(".", props);
-        IQueryable<T> queryBuilder = _dbSet;
+        IQueryable<TModel> queryBuilder = _dbSet;
 
         if (rebuild.IndexOf(".") != -1)
         {
@@ -83,12 +88,12 @@ public class GenericServiceHelper<T>
      * Order everything by property and direction
      * EfVueCrust will use the full order to order subsets
      */
-    public List<int> Order(string propertyPath, int direction)
+    public List<TKey> Order(string propertyPath, int direction)
     {
 
         var props = PathToParts(propertyPath);
         var rebuild = String.Join(".", props);
-        IQueryable<T> queryBuilder = _dbSet;
+        IQueryable<TModel> queryBuilder = _dbSet;
 
         if (rebuild.IndexOf(".") != -1)
         {

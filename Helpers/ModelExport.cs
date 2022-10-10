@@ -3,6 +3,7 @@
 //using NetTopologySuite.Geometries;
 using System.Reflection;
 using System.Text;
+using System.Collections;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -10,6 +11,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;
+using System.Net.NetworkInformation;
 
 //Makes enum and class models for consumption by Vue
 namespace EfVueMantle;
@@ -17,6 +19,24 @@ namespace EfVueMantle;
 public class ModelExport
 {
     private static readonly List<Type> Enooms = new();
+    private static readonly List<Type> Numerics = new List<Type>
+    {
+        typeof(int),
+        typeof(long),
+        typeof(decimal),
+        typeof(short),
+        typeof(double),
+        typeof(float),
+        typeof(uint),
+        typeof(ulong),
+        typeof(ushort),
+    };
+
+    //TODO put somewhere useful
+    public static string ToDashCase(string value)
+    {
+        return Regex.Replace(value, @"([a-z])([A-Z])", "$1-$2").ToLower();
+    }
 
     public static string ConstructEnum(Type enumerType, string directory)
     {
@@ -111,37 +131,148 @@ public class ModelExport
 
         foreach (var modelProperty in modelProperties)
         {
-            var foreignKeyAttribute = modelProperty.GetCustomAttribute(typeof(ForeignKeyAttribute)) as ForeignKeyAttribute;
-            var vueModelForeignKeyAttribute = modelProperty.GetCustomAttribute(typeof(EfVueModelForeignKeyAttribute)) as EfVueModelForeignKeyAttribute;
             var ignoreAttribute = modelProperty.GetCustomAttribute(typeof(JsonIgnoreAttribute)) as JsonIgnoreAttribute;
-            var vuePropertyAttribute = modelProperty.GetCustomAttribute(typeof(EfVuePropertyTypeAttribute)) as EfVuePropertyTypeAttribute;
-            var minLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MinLengthAttribute)) as MinLengthAttribute;
-            var maxLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MaxLengthAttribute)) as MaxLengthAttribute;
-            var bitArrayLength = modelProperty.GetCustomAttribute(typeof(EfBitArrayLengthAttribute)) as EfBitArrayLengthAttribute;
             var vueHidden = modelProperty.GetCustomAttribute(typeof(EfVueHiddenAttribute)) as EfVueHiddenAttribute;
-            var efVueEnum = modelProperty.GetCustomAttribute(typeof(EfVueEnumAttribute)) as EfVueEnumAttribute;
-
             if (vueHidden != null || ignoreAttribute != null)
             {
                 continue;
             }
 
-
+            var modelPropertyType = modelProperty.PropertyType;
+            var enumerable = false;
+            var nullable = false;
             var configurationObject = new Dictionary<string, dynamic>() { };
 
+            var underlyingType = Nullable.GetUnderlyingType(modelPropertyType);
+            //First check if anything is nullable
+            if (!modelPropertyType.IsValueType
+                || underlyingType != null
+                || modelProperty.Name == "Id"
+                )
+            {
+                if (underlyingType != null)
+                {
+                    modelPropertyType = underlyingType;
+                }
+                nullable = true;
+                configurationObject.Add("nullable", true);
+            }
+
+            //Second check if anything is enumerable
+            if (
+                modelPropertyType.IsArray
+                || modelPropertyType.IsGenericType && modelPropertyType.GetGenericTypeDefinition() == typeof(List<>)
+                )
+            {
+                enumerable = true;
+                //Get the inner property type
+                modelPropertyType = modelPropertyType.GenericTypeArguments?[0];
+                if (modelPropertyType == null) {
+                    Console.WriteLine("List or array with no type");
+                    continue;
+                }
+            }
+
+            //Third, get the name of the property
+            var propertyName = modelProperty.Name;
+
+            //Get the property type
+            var propertyTypeName = string.Empty;
+            var vuePropertyTypeAttribute = modelProperty.GetCustomAttribute(typeof(EfVuePropertyTypeAttribute)) as EfVuePropertyTypeAttribute;
+            if (vuePropertyTypeAttribute != null)
+            {
+                propertyTypeName = vuePropertyTypeAttribute.VueProperty;
+                if (propertyTypeName == "BitArray")
+                {
+                    imports.Add($"import {propertyTypeName} from 'ef-vue-crust/data-types/bit-array';\r\n");
+                }
+                else if (propertyTypeName == "Flag")
+                {
+                    imports.Add($"import {propertyTypeName} from 'ef-vue-crust/data-types/flag';\r\n");
+                }
+                else if (modelName != propertyTypeName)
+                {
+                    imports.Add($"import {propertyTypeName} from '../data-types/{ToDashCase(propertyTypeName)}';\r\n");
+                }
+
+            } else if (modelPropertyType.IsEnum)
+            {
+                propertyTypeName = modelPropertyType.Name;
+                Enooms.Add(modelPropertyType);
+                imports.Add($"import {propertyTypeName} from '../enums/{propertyTypeName}.js';\r\n");
+
+            } else if (modelPropertyType == typeof(Guid))
+            {
+                propertyTypeName = "Guid";
+                imports.Add($"import Guid from 'ef-vue-crust/data-types/guid';\r\n");
+            } else if (Numerics.Contains(modelPropertyType))
+            {
+                propertyTypeName = "Number";
+            } else if (modelPropertyType == typeof(bool))
+            {
+                propertyTypeName = "Boolean";
+            } else if (modelPropertyType == typeof(string))
+            {
+                propertyTypeName = "String";
+            } else if (modelPropertyType == typeof(DateTime) || modelPropertyType == typeof(DateTime?))
+            {
+                propertyTypeName = "Date";
+            } else if (modelPropertyType == typeof(byte) && enumerable)
+            {
+                imports.Add($"import ByteArray from 'ef-vue-crust/data-types/byte-array';\r\n");
+                propertyTypeName = "ByteArray";
+                enumerable = false;
+            } else if (modelPropertyType.Name == "Point")
+            {
+                propertyTypeName = modelPropertyType.Name;
+                imports.Add($"import Point from 'ef-vue-crust/data-types/point';\r\n");
+            } else if (modelPropertyType.IsClass)
+            {
+                propertyTypeName = modelPropertyType.Name;
+                if (modelPropertyType != modelType)
+                {
+                    imports.Add($"import {propertyTypeName} from './{propertyTypeName}.js';\r\n");
+                }
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(modelPropertyType));
+            }
+            propertyTypeName = enumerable ? $"[{propertyTypeName}]" : propertyTypeName;
+
+
+            /// Configurations ///
+
+            //Manual FKs
+            var foreignKeyAttribute = modelProperty.GetCustomAttribute(typeof(ForeignKeyAttribute)) as ForeignKeyAttribute;
+            var vueModelForeignKeyAttribute = modelProperty.GetCustomAttribute(typeof(EfVueModelForeignKeyAttribute)) as EfVueModelForeignKeyAttribute;
+            if (vueModelForeignKeyAttribute != null) 
+            {
+                configurationObject.Add("foreignKey", JsonNamingPolicy.CamelCase.ConvertName(vueModelForeignKeyAttribute.VueModelForeignKey));
+            } 
+            else if (foreignKeyAttribute != null)
+            {
+                configurationObject.Add("foreignKey", JsonNamingPolicy.CamelCase.ConvertName(foreignKeyAttribute.Name));
+            } 
+            else if (modelPropertyType.IsSubclassOf(typeof(ModelBase)))
+            {
+                configurationObject.Add("foreignKey", $"{JsonNamingPolicy.CamelCase.ConvertName(propertyName)}Id{(enumerable ? "s":"")}");
+            }
+
+            var bitArrayLength = modelProperty.GetCustomAttribute(typeof(EfBitArrayLengthAttribute)) as EfBitArrayLengthAttribute;
             if (bitArrayLength != null)
             {
                 configurationObject["length"] = bitArrayLength.BitArrayLength;
             }
-            if (foreignKeyAttribute != null)
-            {
-                configurationObject["foreignKey"] = JsonNamingPolicy.CamelCase.ConvertName(foreignKeyAttribute.Name);
-            }
-            if (vueModelForeignKeyAttribute != null)
-            {
-                configurationObject["foreignKey"] = JsonNamingPolicy.CamelCase.ConvertName(vueModelForeignKeyAttribute.VueModelForeignKey);
-            }
-            if (minLengthPropertyAttribute != null && maxLengthPropertyAttribute != null && minLengthPropertyAttribute.Length == maxLengthPropertyAttribute.Length)
+
+
+            var minLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MinLengthAttribute)) as MinLengthAttribute;
+            var maxLengthPropertyAttribute = modelProperty.GetCustomAttribute(typeof(MaxLengthAttribute)) as MaxLengthAttribute;
+
+            if (
+                minLengthPropertyAttribute != null 
+                && maxLengthPropertyAttribute != null 
+                && minLengthPropertyAttribute.Length == maxLengthPropertyAttribute.Length)
             {
                 configurationObject["length"] = minLengthPropertyAttribute.Length;
             }
@@ -156,16 +287,8 @@ public class ModelExport
                     configurationObject["maxLength"] = maxLengthPropertyAttribute.Length;
                 }
             }
-            //!!Can add regex here
 
-            string propertyType = "null";
-            bool nullable = false;
-            if (modelProperty.Name == "Id"
-                || modelProperty.PropertyType.IsGenericType
-                && modelProperty.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-            {
-                nullable = true;
-            }
+            var efVueEnum = modelProperty.GetCustomAttribute(typeof(EfVueEnumAttribute)) as EfVueEnumAttribute;
 
             if (efVueEnum?.VueEnum != null)
             {
@@ -174,174 +297,9 @@ public class ModelExport
                 configurationObject["enum"] = efVueEnum.VueEnum;
             }
 
-            if (vuePropertyAttribute != null)
-            {
-                if (modelName != vuePropertyAttribute.VueProperty)
-                {
-                    if (vuePropertyAttribute.VueProperty == "BitArray")
-                    {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from 'ef-vue-crust/data-types/bit-array';\r\n");
-                    }
-                    else if (vuePropertyAttribute.VueProperty == "Flag")
-                    {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from 'ef-vue-crust/data-types/flag';\r\n");
-                    }
-                    else
-                    {
-                        imports.Add($"import {vuePropertyAttribute.VueProperty} from '../data-types/{Regex.Replace(vuePropertyAttribute.VueProperty, @"([a-z])([A-Z])", "$1-$2").ToLower()}';\r\n");
-                    }
-                }
-                if (modelProperty.PropertyType.IsArray
-                    || modelProperty.PropertyType == typeof(IEnumerable<int>)
-                    || modelProperty.PropertyType == typeof(IEnumerable<int>))
-                {
-                    propertyType = $"[{vuePropertyAttribute.VueProperty}]";
-                }
-                else
-                {
-                    propertyType = vuePropertyAttribute.VueProperty;
-                }
-            }
-            else if (modelProperty.PropertyType == typeof(string))
-            {
-                if (modelProperty.GetMethod?.CustomAttributes.Where(x => x.AttributeType.Name == "NullableContextAttribute").Count() > 0)
-                {
-                    nullable = true;
-                }
-                propertyType = "String";
-            }
-            else if (modelProperty.PropertyType == typeof(Guid))
-            {
-                imports.Add($"import Guid from 'ef-vue-crust/data-types/guid';\r\n");
-                propertyType = "Guid";
-            }
-            else if (modelProperty.PropertyType == typeof(Guid?))
-            {
-                nullable = true;
-                imports.Add($"import Guid from 'ef-vue-crust/data-types/guid';\r\n");
-                propertyType = "Guid";
-            }
-            else if (
-                modelProperty.PropertyType == typeof(int)
-                || modelProperty.PropertyType == typeof(int?)
-                || modelProperty.PropertyType == typeof(decimal)
-                || modelProperty.PropertyType == typeof(decimal?)
-                || modelProperty.PropertyType == typeof(double)
-                || modelProperty.PropertyType == typeof(double?)
-            )
-            {
-                propertyType = "Number";
-            }
-            else if (modelProperty.PropertyType == typeof(bool) || modelProperty.PropertyType == typeof(bool?))
-            {
-                propertyType = "Boolean";
-            }
-            else if (modelProperty.PropertyType == typeof(DateTime) || modelProperty.PropertyType == typeof(DateTime?))
-            {
-                propertyType = "Date";
-            }
-            else if (modelProperty.PropertyType.IsEnum)
-            {
-                Enooms.Add(modelProperty.PropertyType);
-                imports.Add($"import {modelProperty.PropertyType.Name} from '../enums/{modelProperty.PropertyType.Name}.js';\r\n");
-                propertyType = modelProperty.PropertyType.Name;
-            }
-            else if (modelProperty.PropertyType.GenericTypeArguments?.FirstOrDefault()?.IsEnum == true)
-            {
-                Enooms.Add(modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault());
-                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name} from '../enums/{modelProperty?.PropertyType?.GenericTypeArguments?.FirstOrDefault()?.Name}.js';\r\n");
-                propertyType = modelProperty?.PropertyType.GenericTypeArguments.FirstOrDefault()?.Name ?? "Null";
-                nullable = true;
-            }
-            else if (modelProperty.PropertyType.Name == "Byte[]")
-            {
-                imports.Add($"import ByteArray from 'ef-vue-crust/data-types/byte-array';\r\n");
-                propertyType = $"ByteArray";
-            }
-            else if (modelProperty.PropertyType.IsClass)
-            {
-                //not self-referencing
-                if (modelName != modelProperty.PropertyType.Name)
-                {
-                    if (modelProperty.PropertyType.Name == "Point")
-                    {
-                        imports.Add($"import {modelProperty.PropertyType.Name} from 'ef-vue-crust/data-types/point';\r\n");
-                        propertyType = modelProperty.PropertyType.Name;
-                    }
-                    else if (modelProperty.PropertyType.Name == "List`1")
-                    {
 
-                        if (modelProperty.PropertyType.GenericTypeArguments?[0].Name == "Int32")
-                        {
-                            nullable = true;
-                            propertyType = "[Number]";
-                        }
-                        else if (modelProperty.PropertyType.GenericTypeArguments?[0].Name == "String")
-                        {
-                            nullable = true;
-                            propertyType = "[String]";
-                        }
-                        else
-                        {
-                            if (modelProperty.PropertyType.GenericTypeArguments?[0].Name != modelName)
-                            {
-                                imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments?[0].Name} from './{modelProperty.PropertyType.GenericTypeArguments?[0].Name}.js';\r\n");
-                            }
-                            propertyType = $"[{modelProperty.PropertyType.GenericTypeArguments?[0].Name}]";
-                        }
-                    }
-                    else
-                    {
-                        imports.Add($"import {modelProperty.PropertyType.Name} from './{modelProperty.PropertyType.Name}.js';\r\n");
-                        propertyType = modelProperty.PropertyType.Name;
-                    } 
-                }
-                else
-                {
-                    propertyType = modelProperty.PropertyType.Name;
 
-                }
-            }
-            else if (modelProperty is IEnumerable<string>)
-            {
-                propertyType = "[String]";
-            }
-            else if (modelProperty is IEnumerable<int>)
-            {
-                propertyType = "[Number]";
-            }
-            else if (modelProperty is IEnumerable<Enum>)
-            {
-                Enooms.Add(modelProperty.PropertyType);
-                imports.Add($"import {modelProperty.PropertyType.Name} from '../enums/{modelProperty.PropertyType.Name}.js';\r\n");
-                propertyType = $"[{modelProperty.PropertyType.Name}]";
-            }
-            else if (modelProperty is IEnumerable<object>)
-            {
-                imports.Add($"import {modelProperty.PropertyType.Name} from './{modelProperty.PropertyType.Name}.js';\r\n");
-                propertyType = $"[{modelProperty.PropertyType.Name}]";
-            }
-            else if (modelProperty.PropertyType.Name == "IEnumerable`1")
-            {
-                if (modelProperty.CustomAttributes.FirstOrDefault()?.AttributeType?.Name == "NullableAttribute")
-                {
-                    nullable = true;
-                }
-                if (modelProperty.PropertyType.GenericTypeArguments?[0].Name == "Int32")
-                {
-                    nullable = true;
-                    propertyType = "[Number]";
-                }
-                else
-                {
-                    imports.Add($"import {modelProperty.PropertyType.GenericTypeArguments?[0].Name} from './{modelProperty.PropertyType.GenericTypeArguments?[0].Name}.js';\r\n");
-                    propertyType = $"[{modelProperty.PropertyType.GenericTypeArguments?[0].Name}]";
-                }
-            }
-            else
-            {
-                propertyType = modelProperty.PropertyType.Name;
-            }
+                           
 
             if (configurationObject.Count > 0)
             {
@@ -350,11 +308,11 @@ public class ModelExport
                     TypeNameHandling = TypeNameHandling.None
                 };
                 jsonSerializerSettings.Converters.Add(new TypeConverter());
-                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}, config: {JsonConvert.SerializeObject(configurationObject, jsonSerializerSettings)}}},\r\n");
+                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyTypeName}, nullable: {nullable.ToString().ToLower()}, config: {JsonConvert.SerializeObject(configurationObject, jsonSerializerSettings)}}},\r\n");
             }
             else
             {
-                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyType}, nullable: {nullable.ToString().ToLower()}}},\r\n");
+                properties.Add($"            '{JsonNamingPolicy.CamelCase.ConvertName(modelProperty?.Name ?? string.Empty)}': {{type: {propertyTypeName}, nullable: {nullable.ToString().ToLower()}}},\r\n");
             }
 
         }

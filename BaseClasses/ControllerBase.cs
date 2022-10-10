@@ -2,11 +2,19 @@
 
 namespace EfVueMantle;
 
-[ApiController]
-[Route("[controller]")]
-public class ControllerBase<TModel, TService> : ControllerBase
+public class ControllerBase<TModel, TService> : ControllerBase<TModel, TService, long> 
     where TModel : ModelBase
     where TService : ServiceBase<TModel>
+{ 
+    public ControllerBase(TService service) : base(service) { }
+}
+
+[ApiController]
+[Route("[controller]")]
+public class ControllerBase<TModel, TService, TKey> : ControllerBase
+    where TModel : ModelBase<TKey>
+    where TService : ServiceBase<TModel, TKey>
+    where TKey : IEquatable<TKey>
 {
 
     private TService _service { get; set; }
@@ -18,7 +26,7 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
 
     [HttpGet("Get/{id}")]
-    public virtual IActionResult Get(int id)
+    public virtual IActionResult Get(TKey id)
     {
         return Ok(_service.Get(id));
     }
@@ -35,7 +43,7 @@ public class ControllerBase<TModel, TService> : ControllerBase
 
     //Return records from list of ids
     [HttpPost("List")]
-    public virtual IActionResult GetList(List<int> ids)
+    public virtual IActionResult GetList(List<TKey> ids)
     {
         List<TModel> list = _service.GetList(ids);
         return Ok(list);
@@ -52,7 +60,7 @@ public class ControllerBase<TModel, TService> : ControllerBase
     [HttpGet("Index/{type}/{prop}/{spec}")]
     public virtual IActionResult Index(string type, string prop, string spec)
     {
-        List<int> list = new List<int>();
+        List<TKey> list = new List<TKey>();
         try
         {
             switch (type)
@@ -86,8 +94,16 @@ public class ControllerBase<TModel, TService> : ControllerBase
         return Ok(data);
     }
 
+    //Add many instances of this model
+    [HttpPost("SaveAll")]
+    public virtual IActionResult SaveAll(List<TModel> datas)
+    {
+        _service.SaveAll(datas);
+        return Ok(datas);
+    }
+
     [HttpDelete("Delete")]
-    public virtual IActionResult Delete(int id)
+    public virtual IActionResult Delete(TKey id)
     {
         _service.Delete(id);
         return Ok(true);
