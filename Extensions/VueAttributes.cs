@@ -68,6 +68,16 @@ public class EfVueSourceAttribute : Attribute
         VueSource = vueSource;
     }
 }
+[AttributeUsage(AttributeTargets.Class)]
+public class EfVueEndpointAttribute : Attribute
+{
+    public string Endpoint { get; set; }
+    public EfVueEndpointAttribute(string endpoint)
+    {
+        Endpoint = endpoint;
+    }
+}
+
 
 [AttributeUsage(AttributeTargets.Property)]
 public class EfVueEnumAttribute : Attribute

@@ -105,7 +105,7 @@ public class ServiceBase<TModel, TKey>
     {
         _dynamic.Add(data);
         _context.Entry(data).State =
-            data.Id != null 
+            data.Id.Equals(default(TKey))
                 ? EntityState.Added 
                 : EntityState.Modified;
         _context.SaveChanges();
