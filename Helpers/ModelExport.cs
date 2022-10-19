@@ -136,6 +136,7 @@ public class ModelExport
         List<string> imports = new();
         List<string> properties = new();
         Dictionary<string, string> foreignKeys = new();
+        NullabilityInfoContext nullabilityContext = new NullabilityInfoContext();
 
         foreach (var modelProperty in modelProperties)
         {
@@ -151,12 +152,13 @@ public class ModelExport
             var configurationObject = new Dictionary<string, dynamic>() { };
 
             var underlyingType = Nullable.GetUnderlyingType(modelPropertyType);
+            var nullabilityInfo = nullabilityContext.Create(modelProperty);
             //First check if anything is nullable
-            if (!modelPropertyType.IsValueType
-                || underlyingType != null
-                || modelProperty.Name == "Id"
+            if (underlyingType != null
+                || nullabilityInfo.WriteState is NullabilityState.Nullable
                 )
             {
+
                 if (underlyingType != null)
                 {
                     modelPropertyType = underlyingType;
