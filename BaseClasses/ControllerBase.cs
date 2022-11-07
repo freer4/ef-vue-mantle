@@ -60,7 +60,7 @@ public class ControllerBase<TModel, TService, TKey> : ControllerBase
     [HttpGet("Index/{type}/{prop}/{spec}")]
     public virtual IActionResult Index(string type, string prop, string spec)
     {
-        List<TKey> list = new List<TKey>();
+        var list = new List<TKey>();
         try
         {
             switch (type)

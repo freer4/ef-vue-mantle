@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Reflection;
 
 namespace EfVueMantle;
 
@@ -58,13 +61,11 @@ public class GenericServiceHelper<TModel, TKey>
      * Takes a property name (or path in dot notation) and a string to look for,
      * returns a list of ids for values containing spec
      */
-    public List<TKey> Contains(string propertyPath, string spec)
+    public List<TKey> Contains(string propertyPath, dynamic spec)
     {
 
         //case-insensitive
         //TODO create a case-sensitive version
-        spec = spec.Trim().ToLower();
-
         var props = PathToParts(propertyPath);
         var rebuild = String.Join(".", props);
         IQueryable<TModel> queryBuilder = _dbSet;
@@ -74,14 +75,17 @@ public class GenericServiceHelper<TModel, TKey>
             queryBuilder = _dbSet.Include(rebuild.Remove(rebuild.LastIndexOf(".")));
         }
 
-        return queryBuilder.AsEnumerable()
+        var data = queryBuilder.AsEnumerable()
             .Where(x =>
             {
                 var y = TraversePropertyTree(x, props);
-                return y?.ToString()?.ToLower().Contains(spec.ToString()) ?? false;
+                if (y == null) return false;
+                return y.ToString()?.Contains(spec, StringComparison.InvariantCultureIgnoreCase) ?? false;
             })
-            .Select(x => x.Id)
             .ToList();
+
+        return data.Select(x => x.Id).ToList();
+
     }
 
     /*

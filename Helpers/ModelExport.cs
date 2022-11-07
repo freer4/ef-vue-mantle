@@ -104,6 +104,8 @@ public class ModelExport
     {
         string modelName;
 
+        var models = AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes())
+          .Where(t => t.IsSubclassOf(typeof(ModelBase)));
 
         var vueModelAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueModelAttribute)) as EfVueModelAttribute;
         var efVueSourceAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueSourceAttribute)) as EfVueSourceAttribute;
@@ -204,7 +206,13 @@ public class ModelExport
                 }
                 else if (modelName != propertyTypeName)
                 {
-                    imports.Add($"import {propertyTypeName} from '../data-types/{ToDashCase(propertyTypeName)}';");
+                    if (models.Select(x => x.Name).ToList().Contains(propertyTypeName))
+                    {
+                        imports.Add($"import {propertyTypeName} from './{propertyTypeName}';");
+                    } else
+                    {
+                        imports.Add($"import {propertyTypeName} from '../data-types/{ToDashCase(propertyTypeName)}';");
+                    }
                 }
 
             } else if (modelPropertyType.IsEnum)
