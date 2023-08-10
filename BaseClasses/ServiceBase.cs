@@ -103,11 +103,11 @@ public class ServiceBase<TModel, TKey>
      */
     public virtual TModel Save(TModel data)
     {
-        _dynamic.Add(data);
-        _context.Entry(data).State =
-            data.Id.Equals(default(TKey))
-                ? EntityState.Added 
+        var state = data.Id.Equals(default(TKey))
+                ? EntityState.Added
                 : EntityState.Modified;
+        _dynamic.Add(data);
+        _context.Entry(data).State = state;            
         _context.SaveChanges();
         return data;
     }
@@ -117,22 +117,55 @@ public class ServiceBase<TModel, TKey>
      */
     public virtual List<TModel> SaveAll(List<TModel> datas)
     {
-        datas.ForEach(data => _dynamic.Add(data));
-        datas.ForEach(data => _context.Entry(data).State =
-            string.IsNullOrEmpty(data.Id.ToString()) || data.Id.Equals(0)
-                ? EntityState.Added 
+        var states = datas.ToDictionary(x => x, x => x.Id.Equals(default(TKey))
+                ? EntityState.Added
                 : EntityState.Modified);
+        _dynamic.AddRange(datas);
+        datas.ForEach(data => _context.Entry(data).State = states[data]);
         _context.SaveChanges();
         return datas;
     }
 
+    /*
+     * Insert a record 
+     */
+    public virtual TModel Insert(TModel data)
+    {
+        _dynamic.Add(data);
+        _context.Entry(data).State = EntityState.Added;
+        _context.SaveChanges();
+        return data;
+    }
+    /*
+     * Insert several records     
+     */
+    public virtual List<TModel> InsertMany(List<TModel> datas)
+    {
+        _dynamic.AddRange(datas);
+        datas.ForEach(data => _context.Entry(data).State = EntityState.Added);
+        _context.SaveChanges();
+        return datas;
+    }
 
     /*
-     * Update a record, return number of records changed
+     * Update a record
      */
-    public virtual int Update()
+    public virtual TModel Update(TModel data)
     {
-        return _context.SaveChanges();
+        _dynamic.Add(data);
+        _context.Entry(data).State = EntityState.Modified;
+        _context.SaveChanges();
+        return data;
+    }
+    /*
+     * Update several records     
+     */
+    public virtual List<TModel> UpdateMany(List<TModel> datas)
+    {
+        _dynamic.AddRange(datas);
+        datas.ForEach(data => _context.Entry(data).State = EntityState.Modified);
+        _context.SaveChanges();
+        return datas;
     }
 
     /*
