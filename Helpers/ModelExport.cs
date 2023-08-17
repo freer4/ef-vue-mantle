@@ -3,16 +3,12 @@
 //using NetTopologySuite.Geometries;
 using System.Reflection;
 using System.Text;
-using System.Collections;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations.Schema;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json.Linq;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;
-using System.Net.NetworkInformation;
-using Microsoft.AspNetCore.Http;
 
 //Makes enum and class models for consumption by Vue
 namespace EfVueMantle;
@@ -105,7 +101,11 @@ public class ModelExport
         string modelName;
 
         var models = AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes())
-          .Where(t => t.IsSubclassOf(typeof(ModelBase)));
+          .Where(t => t.IsSubclassOf(typeof(ModelBase))
+            || t.IsSubclassOf(typeof(ModelBase<Guid>))
+            || t.IsSubclassOf(typeof(IModelBase))
+            || t.IsSubclassOf(typeof(IModelBase<Guid>)));
+
 
         var vueModelAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueModelAttribute)) as EfVueModelAttribute;
         var efVueSourceAttribute = Attribute.GetCustomAttribute(modelType, typeof(EfVueSourceAttribute)) as EfVueSourceAttribute;
@@ -119,7 +119,12 @@ public class ModelExport
         }
         var modelProperties = modelType.GetProperties();
         string? source = efVueSourceAttribute?.VueSource;
-        if (string.IsNullOrEmpty(source) && modelType.IsSubclassOf(typeof(ModelBase)))
+        if (string.IsNullOrEmpty(source) && (
+            modelType.IsSubclassOf(typeof(ModelBase))
+            || modelType.IsSubclassOf(typeof(ModelBase<Guid>))
+            || modelType.IsSubclassOf(typeof(IModelBase))
+            || modelType.IsSubclassOf(typeof(IModelBase<Guid>))
+            ))
         {
             source = modelName;
         }
@@ -278,7 +283,7 @@ public class ModelExport
                 configurationObject.Add("foreignKey", fkName);
                 foreignKeys.Add(fkName, JsonNamingPolicy.CamelCase.ConvertName(propertyName));
             }
-            else if (modelPropertyType.IsSubclassOf(typeof(ModelBase)))
+            else if (modelPropertyType.IsSubclassOf(typeof(ModelBase)) || modelPropertyType.IsSubclassOf(typeof(ModelBase<Guid>)))
             {
                 var fkName = $"{JsonNamingPolicy.CamelCase.ConvertName(propertyName)}Id{(enumerable ? "s" : "")}";
                 configurationObject.Add("foreignKey", fkName);
@@ -441,7 +446,10 @@ public class ModelExport
     {
         
         var models = AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes())
-          .Where(t => t.IsSubclassOf(typeof(ModelBase)));
+          .Where(t => t.IsSubclassOf(typeof(ModelBase)) 
+          || t.IsSubclassOf(typeof(ModelBase<Guid>)) 
+          || t.IsSubclassOf(typeof(IModelBase)) 
+          || t.IsSubclassOf(typeof(IModelBase<Guid>)));
         var fileLocations = new List<string>();
         
         foreach (var model in models)
