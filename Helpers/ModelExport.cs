@@ -130,7 +130,8 @@ public class ModelExport
         }
         if (!string.IsNullOrEmpty(source))
         {
-            source = source.Replace("Model", "");
+            source = Regex.Replace(source, "Model$", "");
+            //source = source.Replace("Model", "");
         }
 
         string? endpoint = null;
