@@ -173,9 +173,8 @@ public class ServiceBase<TModel, TKey>
      */
     public virtual bool Delete(TKey id)
     {
-        if (Activator.CreateInstance(typeof(TModel)) is not TModel toDelete) return false;
-        toDelete.Id = id;
-        _dynamic.Remove(toDelete);
+        var toDelete = _dynamic.First(x => x.Id.Equals(id));
+        _context.Remove(toDelete);
         _context.SaveChanges();
         return true;
     }

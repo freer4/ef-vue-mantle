@@ -102,7 +102,7 @@ public class ControllerBase<TModel, TService, TKey> : ControllerBase
         return Ok(datas);
     }
 
-    [HttpDelete("Delete")]
+    [HttpDelete("Delete/{id}")]
     public virtual IActionResult Delete(TKey id)
     {
         _service.Delete(id);
