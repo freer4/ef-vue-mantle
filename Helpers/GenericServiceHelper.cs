@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -46,16 +47,26 @@ public class GenericServiceHelper<TModel, TKey>
             {
                 var y = TraversePropertyTree(x, props);
 
-                if (y?.GetType().IsEnum != null)
+                if (IsNumeric(y))
                 {
-                    return (int)y == int.Parse(spec);
+                    return Convert.ToDouble(y) == double.Parse(spec);
                 }
                 return y?.ToString()?.ToLower() == spec;
             })
             .Select(x => x.Id)
             .ToList();
     }
+    public static bool IsNumeric(object? expression)
+    {
+        if (expression == null)
+            return false;
 
+        return double.TryParse(
+            Convert.ToString(expression, CultureInfo.InvariantCulture),
+            NumberStyles.Any,
+            NumberFormatInfo.InvariantInfo,
+            out _);
+    }
 
     /*
      * Takes a property name (or path in dot notation) and a string to look for,
