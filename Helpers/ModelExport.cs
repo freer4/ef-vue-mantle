@@ -180,16 +180,24 @@ public class ModelExport
 
             //Second check if anything is enumerable
             if (
-                modelPropertyType.IsArray
-                || modelPropertyType.IsGenericType && modelPropertyType.GetGenericTypeDefinition() == typeof(List<>)
+                (modelPropertyType.IsEnum
+                    || modelPropertyType.IsArray
+                    || modelPropertyType.IsGenericType && modelPropertyType.GetGenericTypeDefinition() == typeof(List<>))
+                && modelPropertyType != typeof(Enum)
                 )
             {
                 enumerable = true;
-                //Get the inner property type
-                modelPropertyType = modelPropertyType.GenericTypeArguments?[0];
-                if (modelPropertyType == null) {
-                    Console.WriteLine("List or array with no type");
-                    continue;
+
+                if (modelPropertyType.GenericTypeArguments != null
+                    && modelPropertyType.GenericTypeArguments.Length > 0 )
+                {
+                    //Get the inner property type
+                    modelPropertyType = modelPropertyType.GenericTypeArguments?[0];
+                    if (modelPropertyType == null)
+                    {
+                        Console.WriteLine("List or array with no type");
+                        continue;
+                    }
                 }
             }
 
@@ -221,7 +229,7 @@ public class ModelExport
                     }
                 }
 
-            } else if (modelPropertyType.IsEnum)
+            } else if (modelPropertyType.BaseType == typeof(Enum))
             {
                 propertyTypeName = modelPropertyType.Name;
                 Enooms.Add(modelPropertyType);
@@ -262,7 +270,7 @@ public class ModelExport
             }
             else
             {
-                throw new ArgumentOutOfRangeException(nameof(modelPropertyType));
+                throw new ArgumentOutOfRangeException(propertyTypeName);
             }
             propertyTypeName = enumerable ? $"[{propertyTypeName}]" : propertyTypeName;
 
