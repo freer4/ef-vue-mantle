@@ -177,13 +177,12 @@ public class ModelExport
                 configurationObject.Add("nullable", false);
             }
 
-
             //Second check if anything is enumerable
             if (
                 (modelPropertyType.IsEnum
                     || modelPropertyType.IsArray
                     || modelPropertyType.IsGenericType && modelPropertyType.GetGenericTypeDefinition() == typeof(List<>))
-                && modelPropertyType != typeof(Enum)
+                && modelPropertyType.BaseType != typeof(Enum)
                 )
             {
                 enumerable = true;
