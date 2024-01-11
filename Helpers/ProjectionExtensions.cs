@@ -5,6 +5,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Diagnostics;
+using System.ComponentModel;
+using static System.Net.Mime.MediaTypeNames;
 
 //Thanks to Svyatoslav Danyliv @stackoverflow.com
 namespace EfVueMantle.Helpers;
@@ -24,9 +26,9 @@ public static class ProjectionExtensions
         public MemberInfo Member { get; }
         public LambdaExpression Expression { get; }
     }
-    public static bool IsUnderDotnetTool { get; }
-        = Process.GetCurrentProcess().ProcessName == "dotnet";
-
+    public static bool DesignTime { get; }
+        = Process.GetProcesses().Where(x => x.ProcessName == "dotnet-ef").Any();
+        
 
         public static EntityTypeBuilder<TEntity> WithProjection<TEntity, TValue>(
         this EntityTypeBuilder<TEntity> entity,
@@ -34,7 +36,8 @@ public static class ProjectionExtensions
         Expression<Func<TEntity, TValue>> assignmentExpression)
         where TEntity : class
     {
-        if (IsUnderDotnetTool)
+
+        if (DesignTime)
             return entity;
 
         var annotation = entity.Metadata.FindAnnotation(CustomProjectionAnnotation);

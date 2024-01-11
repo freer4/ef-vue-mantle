@@ -74,6 +74,9 @@ public class ControllerBase<TModel, TService, TKey> : ControllerBase
                 case "contains":
                     list = _service.Contains(prop, spec);
                     break;
+                case "any":
+                    list = _service.Any(prop, spec);
+                    break;
                 default: throw new Exception($"Unknown Index \"{type}\" on prop {prop}");
             }
         }

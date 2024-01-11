@@ -1,5 +1,6 @@
 ﻿using EfVueMantle.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace EfVueMantle;
 
@@ -96,6 +97,15 @@ public class ServiceBase<TModel, TKey>
     public virtual List<TKey> Contains(string prop, string spec)
     {
         return _informHelper.Contains(prop, spec);
+    }
+
+    /**
+     * List of Ids where prop.value is in the array spec
+     */
+    public virtual List<TKey> Any(string prop, string spec)
+    {
+        var series = JsonConvert.DeserializeObject<List<dynamic>>($"[{spec}]");
+        return _informHelper.Any(prop, series);
     }
 
     /*

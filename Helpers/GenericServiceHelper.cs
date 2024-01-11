@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Linq;
@@ -97,6 +98,29 @@ public class GenericServiceHelper<TModel, TKey>
 
         return data.Select(x => x.Id).ToList();
 
+    }
+
+    public List<TKey> Any(string propertyPath, List<dynamic> spec)
+    {
+        var props = PathToParts(propertyPath);
+        var rebuild = String.Join(".", props);
+        IQueryable<TModel> queryBuilder = _dbSet;
+
+        if (rebuild.IndexOf(".") != -1)
+        {
+            queryBuilder = _dbSet.Include(rebuild.Remove(rebuild.LastIndexOf(".")));
+        }
+
+        var data = queryBuilder.AsEnumerable()
+            .Where(x =>
+            {
+                var y = TraversePropertyTree(x, props);
+                if (y == null) return false;
+                return spec.Contains(y);
+            })
+            .ToList();
+
+        return data.Select(x => x.Id).ToList();
     }
 
     /*

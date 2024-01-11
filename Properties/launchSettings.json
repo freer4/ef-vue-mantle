@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "EfVueMantle": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    }
+  }
+}
